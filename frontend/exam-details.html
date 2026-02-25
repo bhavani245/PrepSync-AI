@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PREPSYNC — Exam Details</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <div class="title">PREPSYNC</div>
+    </header>
+
+    <main class="main-content">
+      <div class="page-head">
+        <div class="title" style="font-size:28px">Exam Details</div>
+        <div class="subtitle" id="levelLabel"></div>
+      </div>
+
+      <!-- Stream selection removed as per requirements -->
+
+      <div class="card">
+        <div class="input-row">
+          <div class="search-container" style="flex: 1; position: relative;">
+            <i class="fas fa-search search-icon"></i>
+            <input id="search" class="input" style="padding-left: 40px; width: 100%;" 
+                   placeholder="Search exams (e.g., GATE, GRE)" />
+          </div>
+          <button id="refreshBtn" class="btn" title="Refresh exams">
+            <i class="fas fa-sync-alt"></i> Refresh
+          </button>
+        </div>
+        <div id="loadingIndicator" class="loading-indicator" style="display: none; text-align: center; padding: 20px;">
+          <i class="fas fa-spinner fa-spin" style="font-size: 24px; color: var(--accent);"></i>
+          <p>Loading exams...</p>
+        </div>
+        <div id="examList" class="grid cols-2" style="margin-top: 20px;"></div>
+      </div>
+    </main>
+  </div>
+
+  <nav class="bottom-nav" aria-label="Primary">
+    <a class="tab" href="./index.html">
+      <i class="fas fa-home"></i> HOME
+    </a>
+    <a class="tab" href="./history.html">
+      <i class="fas fa-history"></i> HISTORY
+    </a>
+    <a class="tab" href="./settings.html">
+      <i class="fas fa-cog"></i> SETTINGS
+    </a>
+  </nav>
+
+  <script>
+    const API_BASE = (window.location.origin === 'file://') ? 'http://localhost:5000/api' : '/api';
+    const params = new URLSearchParams(location.search);
+    const level = params.get('level') || '';
+    const stream = params.get('stream') || '';
+    const subStream = params.get('subStream') || '';
+    const examId = params.get('id') || '';
+    const examSlug = params.get('slug') || '';
+    const examName = params.get('name') || '';
+
+    // Update the page title and label
+    const levelLabel = document.getElementById('levelLabel');
+    if (examName) {
+      document.title = `PREPSYNC — ${examName}`;
+      levelLabel.textContent = examName;
+    } else if (level) {
+      levelLabel.textContent = `Eligible exams for: ${level}`;
+      if (stream) levelLabel.textContent += ` > ${stream}`;
+      if (subStream) levelLabel.textContent += ` > ${subStream}`;
+    } else {
+      levelLabel.textContent = 'Select a level on Home';
+      levelLabel.style.color = '#666';
+    }
+
+    // Map human-readable level labels to backend categories
+    const STREAM_MAP = {
+      'CSE': 'Computer Science',
+      'ECE': 'Electronics',
+      'EEE': 'Electrical',
+      'MECH': 'Mechanical',
+      'CIVIL': 'Civil'
+    };
+
+    function formatDate(dateStr) {
+      if (!dateStr) return '—';
+      try {
+        const date = new Date(dateStr);
+        return date instanceof Date && !isNaN(date) ? 
+          date.toLocaleDateString('en-US', { 
+            year: 'numeric', 
+            month: 'short', 
+            day: 'numeric' 
+          }) : 
+          dateStr;
+      } catch (e) {
+        return dateStr; // Return as is if parsing fails
+      }
+    }
+
+    function examItem(exam) {
+      // Support both old format (windows/fees) and new format (applicationDate/applicationFee)
+      const window = (exam.windows && exam.windows[0]) || {};
+      
+      // Format fee - support both old and new formats
+      let feeText = '—';
+      if (exam.fees && exam.fees.length) {
+        const fees = exam.fees.map(fee => {
+          const amount = fee.amount != null ? `₹${fee.amount.toLocaleString('en-IN')}` : '—';
+          return fee.category ? `${fee.category}: ${amount}` : amount;
+        });
+        feeText = fees.join(' • ');
+      } else if (exam.applicationFee) {
+        feeText = exam.applicationFee;
+      }
+
+      // Format exam dates - support both old and new formats
+      let examDates = '—';
+      if (exam.examDates && Array.isArray(exam.examDates) && exam.examDates.length) {
+        examDates = exam.examDates.map(date => formatDate(date)).join(', ');
+      } else if (window.examDates && Array.isArray(window.examDates)) {
+        examDates = window.examDates.map(date => formatDate(date)).join(', ') || '—';
+      }
+      
+      // Format application period - support both old and new formats
+      let applicationPeriod = '—';
+      if (exam.applicationDate) {
+        applicationPeriod = exam.applicationDate;
+      } else if (window.applyStart || window.applyEnd) {
+        applicationPeriod = `${formatDate(window.applyStart)} to ${formatDate(window.applyEnd)}`;
+      }
+      
+      // Determine application status
+      const now = new Date();
+      let status = 'text-muted';
+      let statusText = 'Not Available';
+      
+      const applyStart = window.applyStart ? new Date(window.applyStart) : null;
+      const applyEnd = window.applyEnd ? new Date(window.applyEnd) : null;
+      const examDate = (exam.examDates && exam.examDates[0] ? new Date(exam.examDates[0]) : null) || 
+                      (window.examDates && window.examDates[0] ? new Date(window.examDates[0]) : null);
+      
+      if (applyStart && now < applyStart) {
+        status = 'text-info';
+        statusText = `Opens ${formatDate(applyStart)}`;
+      } else if ((!applyEnd || now <= applyEnd) && (!examDate || now <= examDate)) {
+        status = 'text-success';
+        statusText = applyEnd ? `Apply by ${formatDate(applyEnd)}` : 'Apply Now';
+      } else if (examDate && now > examDate) {
+        status = 'text-muted';
+        statusText = 'Exam Completed';
+      } else if (applyEnd && now > applyEnd) {
+        status = 'text-danger';
+        statusText = 'Application Closed';
+      }
+      
+      return `
+      <div class="card" style="grid-column: 1 / -1; margin-bottom: 1rem;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem;">
+          <h3 style="margin: 0; font-size: 18px; color: var(--white);">${exam.name || 'Unknown Exam'}</h3>
+          <span class="${status}" style="white-space: nowrap; font-size: 12px;">
+            ${statusText}
+          </span>
+        </div>
+          
+          <div class="exam-details" style="font-size: 14px; color: var(--muted);">
+            <div class="detail-row">
+              <span class="detail-label">Level:</span>
+              <span>${exam.level || '—'}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Category:</span>
+              <span>${exam.category || '—'}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Application:</span>
+              <span>${applicationPeriod}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Exam Date:</span>
+              <span>${examDates}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Fee:</span>
+              <span>${feeText}</span>
+            </div>
+            ${exam.mode ? `
+            <div class="detail-row">
+              <span class="detail-label">Mode:</span>
+              <span>${exam.mode}</span>
+            </div>` : ''}
+            ${exam.purpose ? `
+            <div class="detail-row">
+              <span class="detail-label">Purpose:</span>
+              <span>${exam.purpose}</span>
+            </div>` : ''}
+          </div>
+
+          ${exam.syllabus ? `
+          <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border);">
+            <div class="detail-label" style="color: var(--muted); margin-bottom: 8px;">Syllabus:</div>
+            <div style="font-size: 13px; color: var(--muted); margin-bottom: 12px; line-height: 1.5;">
+              ${exam.syllabus}
+            </div>
+          </div>` : ''}
+
+          ${exam.youtubeReference ? `
+          <div style="margin-top: 12px;">
+            <a href="${exam.youtubeReference}" target="_blank" rel="noopener noreferrer" 
+               class="btn btn-sm" 
+               style="font-size: 12px; padding: 4px 12px; display: inline-flex; align-items: center; gap: 6px; background-color: #ff0000;"
+               onclick="event.stopPropagation();">
+              <i class="fab fa-youtube"></i> YouTube Reference
+            </a>
+          </div>` : ''}
+          
+          <div style="margin-top: 12px; text-align: right; display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap;">
+            <a href="./exam-syllabus.html?slug=${exam.slug || exam.name}&name=${encodeURIComponent(exam.name || 'Exam')}" 
+               class="btn btn-sm" 
+               style="font-size: 12px; padding: 6px 14px;"
+               onclick="event.stopPropagation();">
+              <i class="fas fa-book"></i> View Syllabus
+            </a>
+            ${(exam.officialUrl || exam.website) ? `
+            <a href="${exam.officialUrl || exam.website}" target="_blank" rel="noopener noreferrer" 
+               class="btn btn-sm" 
+               style="font-size: 12px; padding: 6px 14px;"
+               onclick="event.stopPropagation();">
+              <i class="fas fa-external-link-alt"></i> Official Website
+            </a>` : ''}
+          </div>
+        </div>
+      `;
+    }
+async function loadExams() {
+  const searchInput = document.getElementById('search');
+  const search = searchInput ? searchInput.value.toLowerCase() : '';
+  const examList = document.getElementById('examList');
+  const loadingIndicator = document.getElementById('loadingIndicator');
+  
+  // Initialize URLSearchParams with current URL parameters
+  const urlParams = new URLSearchParams(window.location.search);
+  const levelParam = urlParams.get('level') || level;
+  const streamParam = urlParams.get('stream') || stream;
+  const subStreamParam = urlParams.get('subStream') || subStream;
+  
+  // Show loading indicator
+  if (examList) examList.style.display = 'none';
+  if (loadingIndicator) loadingIndicator.style.display = 'block';
+  
+  if (examList) examList.innerHTML = '<div class="helper">Loading exams...</div>';
+  
+  // Create a new URLSearchParams for the API request
+  const sp = new URLSearchParams();
+  
+  // Debug: Log the parameters
+  console.log('URL Parameters:', { level: levelParam, stream: streamParam, subStream: subStreamParam, search });
+  
+  // Backend expects 'level' parameter
+  if (levelParam) {
+    sp.set('level', levelParam);
+    console.log('Sending level:', levelParam);
+  }
+  if (streamParam) {
+    sp.set('stream', streamParam);
+  }
+  if (subStreamParam) {
+    sp.set('subStream', subStreamParam);
+  }
+  if (search) {
+    sp.set('search', search);
+  }
+  
+  try {
+    const apiUrl = `${API_BASE}/exams?${sp.toString()}`;
+    console.log('Fetching from:', apiUrl);
+    
+    const response = await fetch(apiUrl);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const result = await response.json();
+    console.log('API Response:', result);
+    
+    if (result.status === 'success' && Array.isArray(result.exams)) {
+      const exams = result.exams || [];
+      
+      if (!exams.length) { 
+        console.warn('No exams found for the selected filters');
+        if (examList) {
+          examList.innerHTML = `
+            <div class="helper" style="grid-column: 1 / -1; text-align: center; padding: 2rem;">
+              <div style="font-size: 1.2em; margin-bottom: 0.5rem;">No exams found</div>
+              <div class="text-muted">Try adjusting your search or check back later</div>
+            </div>
+          `;
+        }
+        return; 
+      }
+      
+      if (examList) {
+        examList.innerHTML = exams.map(examItem).join('');
+      }
+    } else {
+      // Handle error case
+      console.error('Unexpected API response format:', result);
+      if (examList) {
+        examList.innerHTML = `
+          <div class="helper" style="grid-column: 1 / -1; color: #dc3545;">
+            Error loading exams. ${result.message || 'Unexpected response format from server.'}
+          </div>
+        `;
+      }
+    }
+  } catch (err) {
+    console.error('Error fetching exams:', err);
+    if (examList) {
+      examList.innerHTML = `
+        <div class="helper" style="grid-column: 1 / -1; color: #dc3545;">
+          Failed to connect to the server. Please check your connection and try again.
+          <div style="margin-top: 1rem; font-size: 0.9em;">
+            Error: ${err.message}
+          </div>
+        </div>
+      `;
+    }
+  } finally {
+    if (loadingIndicator) loadingIndicator.style.display = 'none';
+    if (examList) examList.style.display = 'grid';
+  }
+}
+
+// Load exams on page load
+document.addEventListener('DOMContentLoaded', () => {
+  loadExams();
+  
+  // Add search functionality
+  const searchInput = document.getElementById('search');
+  const refreshBtn = document.getElementById('refreshBtn');
+  
+  if (searchInput) {
+    searchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        loadExams();
+      }
+    });
+  }
+  
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', () => {
+      loadExams();
+    });
+  }
+});
+    
+  </script>
+</body>
+</html>

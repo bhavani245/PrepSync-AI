@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PREPSYNC — Registration</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <style>
+    .wrap{max-width:560px; margin:0 auto}
+    .alert{background:#2a0b0b; color:#ff6b6b; border:1px solid #5b1a1a; padding:10px 12px; border-radius:10px; display:none; margin-bottom:10px}
+    .success{background:#0b2a14; color:#71ff9d; border:1px solid #1a5b2d}
+  </style>
+</head>
+<body>
+  <div class="container wrap">
+    <header class="header">
+      <div class="title">Create Your PREPSYNC Account</div>
+    </header>
+
+    <main>
+      <div id="alert" class="alert" role="alert"></div>
+      <div class="card">
+        <div class="list">
+          <label class="list-item">
+            <div>Full Name</div>
+            <input id="name" class="input" placeholder="Enter your name" />
+          </label>
+          <label class="list-item">
+            <div>Gmail</div>
+            <input id="email" class="input" type="email" placeholder="Enter your Gmail" />
+          </label>
+          <label class="list-item">
+            <div>Password</div>
+            <input id="password" class="input" type="password" placeholder="Create a password" />
+          </label>
+          <label class="list-item">
+            <div>Confirm Password</div>
+            <input id="confirm" class="input" type="password" placeholder="Confirm password" />
+          </label>
+        </div>
+        <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:12px; align-items:center;">
+          <a class="btn btn-outline" href="./login.html">Back to Login</a>
+          <button id="registerBtn" class="btn">CREATE ACCOUNT</button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <nav class="bottom-nav" aria-label="Primary">
+    <a class="tab" href="./index.html">HOME</a>
+    <a class="tab" href="./history.html">HISTORY</a>
+    <a class="tab" href="./settings.html">SETTINGS</a>
+  </nav>
+
+  <script>
+    const alertBox = document.getElementById('alert');
+    const registerBtn = document.getElementById('registerBtn');
+    const nameInput = document.getElementById('name');
+    const emailInput = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
+    const confirmInput = document.getElementById('confirm');
+    
+    let __registerBusy = false;
+
+    // Check if user is already logged in
+    function checkAuth() {
+      const token = localStorage.getItem('authToken');
+      if (token) {
+        window.location.href = './index.html';
+      }
+    }
+
+    // Validate email format
+    function isValidEmail(email) {
+      const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      return re.test(String(email).toLowerCase());
+    }
+
+    // Validate password strength
+    function isStrongPassword(password) {
+      // At least 8 characters, 1 uppercase, 1 lowercase, 1 number, 1 special character
+      const re = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+      return re.test(password);
+    }
+
+    async function doRegister() {
+      if (__registerBusy) return;
+      
+      // Get form values
+      const name = nameInput.value.trim();
+      const email = emailInput.value.trim().toLowerCase();
+      const password = passwordInput.value.trim();
+      const confirm = confirmInput.value.trim();
+      
+      // Reset states
+      __registerBusy = true;
+      registerBtn.disabled = true;
+      alertBox.style.display = 'none';
+      
+      // Validation
+      if (!name || !email || !password || !confirm) {
+        showError('All fields are required');
+        __registerBusy = false;
+        registerBtn.disabled = false;
+        return;
+      }
+      
+      if (!isValidEmail(email)) {
+        showError('Please enter a valid email address');
+        emailInput.focus();
+        __registerBusy = false;
+        registerBtn.disabled = false;
+        return;
+      }
+      
+      if (password !== confirm) {
+        showError('Passwords do not match');
+        passwordInput.value = '';
+        confirmInput.value = '';
+        passwordInput.focus();
+        __registerBusy = false;
+        registerBtn.disabled = false;
+        return;
+      }
+      
+      if (!isStrongPassword(password)) {
+        showError('Password must be at least 8 characters long and include uppercase, lowercase, number, and special character');
+        passwordInput.value = '';
+        confirmInput.value = '';
+        passwordInput.focus();
+        __registerBusy = false;
+        registerBtn.disabled = false;
+        return;
+      }
+
+      try {
+        // Show loading state
+        registerBtn.textContent = 'Creating Account...';
+        
+        // Simulate registration with localStorage (since backend doesn't have auth endpoints)
+        // In a real app, this would call the backend API
+        const users = JSON.parse(localStorage.getItem('users') || '[]');
+        
+        // Check if user already exists
+        if (users.find(u => u.email === email)) {
+          throw new Error('An account with this email already exists');
+        }
+        
+        // Create new user
+        const newUser = {
+          id: Date.now().toString(),
+          name: name,
+          username: name.toLowerCase().replace(/\s+/g, '_'),
+          email: email,
+          password: password, // In a real app, this would be hashed
+          createdAt: new Date().toISOString()
+        };
+        
+        // Save user to localStorage
+        users.push(newUser);
+        localStorage.setItem('users', JSON.stringify(users));
+        
+        // Show success message
+        showSuccess('Registration successful! Redirecting to login...');
+        
+        // Clear form
+        nameInput.value = '';
+        emailInput.value = '';
+        passwordInput.value = '';
+        confirmInput.value = '';
+        
+        // Redirect to login after delay
+        setTimeout(() => {
+          window.location.href = './login.html';
+        }, 1500);
+        
+      } catch (error) {
+        console.error('Registration error:', error);
+        showError(error.message || 'Registration failed. Please try again.');
+        
+        // Focus on the first error field
+        if (error.message && error.message.includes('email')) {
+          emailInput.focus();
+        } else {
+          nameInput.focus();
+        }
+      } finally {
+        __registerBusy = false;
+        registerBtn.disabled = false;
+        registerBtn.textContent = 'CREATE ACCOUNT';
+      }
+    }
+
+    function showError(message) {
+      alertBox.textContent = message;
+      alertBox.style.display = 'block';
+      alertBox.className = 'alert';
+      alertBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      
+      // Add shake animation
+      alertBox.style.animation = 'shake 0.5s';
+      setTimeout(() => {
+        alertBox.style.animation = '';
+      }, 500);
+    }
+
+    function showSuccess(message) {
+      alertBox.textContent = message;
+      alertBox.style.display = 'block';
+      alertBox.className = 'alert success';
+      alertBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    // Add event listeners
+    if (registerBtn) {
+      // Click handler
+      registerBtn.addEventListener('click', doRegister);
+      
+      // Form submission on Enter key
+      const formInputs = [nameInput, emailInput, passwordInput, confirmInput];
+      formInputs.forEach((input, index) => {
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            if (index < formInputs.length - 1) {
+              formInputs[index + 1].focus();
+            } else {
+              doRegister();
+            }
+          }
+        });
+      });
+    }
+    
+    // Check auth status on page load
+    checkAuth();
+</script>
+</body>
+</html>

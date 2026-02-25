@@ -1,0 +1,33 @@
+{
+  "profile": {
+    "username": "Guest",
+    "email": "guest@example.com"
+  },
+  "history": [],
+  "users": {
+    "guest@example.com": {
+      "username": "Guest",
+      "email": "guest@example.com",
+      "password": "password123",
+      "history": []
+    },
+    "chukkala2509@gmail.com": {
+      "username": "Chukkala",
+      "email": "chukkala2509@gmail.com",
+      "password": "sona2525",
+      "history": []
+    },
+    "bhargavichukkala@gmail.com": {
+      "username": "Sona",
+      "email": "bhargavichukkala@gmail.com",
+      "password": "sona1",
+      "history": []
+    },
+    "vaishu@gmail.com": {
+      "username": "vaishu",
+      "email": "vaishu@gmail.com",
+      "password": "vaishu",
+      "history": []
+    }
+  }
+}

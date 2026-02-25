@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PREPSYNC — Exam Syllabus</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <div class="title">PREPSYNC</div>
+    </header>
+
+    <main>
+      <div class="page-head">
+        <div class="title" style="font-size:28px" id="examName">Exam Syllabus</div>
+        <div class="subtitle">Detailed syllabus and resources</div>
+      </div>
+
+      <div class="grid cols-2">
+        <section class="card">
+          <div class="item-title accent" style="margin-bottom:8px">Important Dates</div>
+          <div id="dates" class="list"></div>
+        </section>
+        <section class="card">
+          <div class="item-title accent" style="margin-bottom:8px">Fees</div>
+          <div id="fees" class="list"></div>
+        </section>
+        <section class="card" style="grid-column:1/-1">
+          <div class="item-title accent" style="margin-bottom:8px">Syllabus</div>
+          <div id="syllabus" class="grid cols-2"></div>
+        </section>
+        <section class="card" style="grid-column:1/-1">
+          <div class="item-title accent" style="margin-bottom:8px">Resources</div>
+          <div id="resources" class="list"></div>
+        </section>
+        <div class="card" style="grid-column:1/-1; display:flex; gap:8px; justify-content:flex-end">
+          <a class="btn btn-outline" href="javascript:history.back()">Back</a>
+          <button id="trackBtn" class="btn">Track</button>
+          <a id="official" class="btn" target="_blank" rel="noopener">Official Website</a>
+        </div>
+      </div>
+      
+      <!-- Roadmap Section -->
+      <div class="card" style="grid-column:1/-1; margin-top: 18px; background: #000000;">
+        <div class="item-title accent" style="margin-bottom:12px">Roadmap</div>
+        <div id="roadmap" style="color: var(--muted); line-height: 1.6;"></div>
+      </div>
+    </main>
+  </div>
+
+  <nav class="bottom-nav" aria-label="Primary">
+    <a class="tab" href="./index.html">HOME</a>
+    <a class="tab" href="./history.html">HISTORY</a>
+    <a class="tab" href="./settings.html">SETTINGS</a>
+  </nav>
+
+  <script>
+    const API_BASE = (window.location.origin === 'file://') ? 'http://localhost:5000/api' : '/api';
+    const params = new URLSearchParams(location.search);
+    const slug = params.get('slug');
+    const nameFromQuery = params.get('name');
+
+    if(nameFromQuery) document.getElementById('examName').textContent = nameFromQuery;
+
+    function setList(el, entries){
+      el.innerHTML = (entries && entries.length) ? entries.map(x => `<div class='list-item'><div>${x}</div></div>`).join('') : '<div class="helper">—</div>';
+    }
+
+    function fmt(d){ try{ return new Date(d).toDateString(); }catch{ return d || '—'; } }
+
+    // Track exam functionality
+    function trackExam(exam) {
+      const trackedExams = JSON.parse(localStorage.getItem('trackedExams') || '[]');
+      
+      // Check if exam is already tracked
+      if (trackedExams.find(e => e.id === exam.id)) {
+        alert('This exam is already in your history!');
+        return;
+      }
+      
+      // Add exam to tracked list
+      trackedExams.push({
+        id: exam.id,
+        name: exam.name,
+        slug: exam.slug,
+        category: exam.category,
+        level: exam.level,
+        trackedAt: new Date().toISOString()
+      });
+      
+      localStorage.setItem('trackedExams', JSON.stringify(trackedExams));
+      alert('Exam tracked successfully! Redirecting to history...');
+      
+      // Redirect to history page
+      setTimeout(() => {
+        window.location.href = './history.html';
+      }, 1000);
+    }
+
+    // Generate roadmap based on exam type
+    function generateRoadmap(exam) {
+      const examName = (exam.name || '').toLowerCase();
+      const category = (exam.category || '').toLowerCase();
+      
+      let roadmap = '';
+      
+      if (examName.includes('gate') || category.includes('engineering')) {
+        roadmap = `
+          <h4 style="color: var(--white); margin-bottom: 12px;">GATE Preparation Roadmap</h4>
+          <div style="margin-bottom: 16px;">
+            <strong>Phase 1: Foundation (3-4 months)</strong><br>
+            • Complete syllabus overview<br>
+            • Strengthen core subjects<br>
+            • Study standard textbooks<br>
+            • Solve previous year questions
+          </div>
+          <div style="margin-bottom: 16px;">
+            <strong>Phase 2: Practice (2-3 months)</strong><br>
+            • Mock tests and analysis<br>
+            • Time management practice<br>
+            • Weak area improvement<br>
+            • Revision of key concepts
+          </div>
+          <div>
+            <strong>Phase 3: Final Preparation (1 month)</strong><br>
+            • Full-length mock tests<br>
+            • Quick revision notes<br>
+            • Exam strategy planning<br>
+            • Stay calm and confident
+          </div>
+        `;
+      } else if (examName.includes('cat') || category.includes('management')) {
+        roadmap = `
+          <h4 style="color: var(--white); margin-bottom: 12px;">CAT Preparation Roadmap</h4>
+          <div style="margin-bottom: 16px;">
+            <strong>Phase 1: Concept Building (4 months)</strong><br>
+            • Quantitative Aptitude fundamentals<br>
+            • Verbal Ability basics<br>
+            • Logical Reasoning concepts<br>
+            • Data Interpretation techniques
+          </div>
+          <div style="margin-bottom: 16px;">
+            <strong>Phase 2: Skill Development (3 months)</strong><br>
+            • Speed and accuracy practice<br>
+            • Mock test analysis<br>
+            • Time management skills<br>
+            • Strategy refinement
+          </div>
+          <div>
+            <strong>Phase 3: Peak Performance (1 month)</strong><br>
+            • Full-length mock tests<br>
+            • Stress management<br>
+            • Final revision<br>
+            • Exam day preparation
+          </div>
+        `;
+      } else if (examName.includes('upsc') || category.includes('civil')) {
+        roadmap = `
+          <h4 style="color: var(--white); margin-bottom: 12px;">UPSC Preparation Roadmap</h4>
+          <div style="margin-bottom: 16px;">
+            <strong>Phase 1: Foundation (6 months)</strong><br>
+            • NCERT books (6th-12th)<br>
+            • Standard reference books<br>
+            • Current affairs integration<br>
+            • Basic understanding of all subjects
+          </div>
+          <div style="margin-bottom: 16px;">
+            <strong>Phase 2: Intensive Study (8 months)</strong><br>
+            • Subject-wise deep study<br>
+            • Answer writing practice<br>
+            • Previous year questions<br>
+            • Current affairs analysis
+          </div>
+          <div style="margin-bottom: 16px;">
+            <strong>Phase 3: Revision & Test (4 months)</strong><br>
+            • Multiple revisions<br>
+            • Test series practice<br>
+            • Essay writing<br>
+            • Interview preparation
+          </div>
+          <div>
+            <strong>Phase 4: Final Touch (2 months)</strong><br>
+            • Consolidated revision<br>
+            • Mock interviews<br>
+            • Stress management<br>
+            • Exam readiness
+          </div>
+        `;
+      } else {
+        roadmap = `
+          <h4 style="color: var(--white); margin-bottom: 12px;">General Exam Preparation Roadmap</h4>
+          <div style="margin-bottom: 16px;">
+            <strong>Phase 1: Understanding (1-2 months)</strong><br>
+            • Complete syllabus analysis<br>
+            • Exam pattern understanding<br>
+            • Resource collection<br>
+            • Study schedule creation
+          </div>
+          <div style="margin-bottom: 16px;">
+            <strong>Phase 2: Study & Practice (3-4 months)</strong><br>
+            • Subject-wise study<br>
+            • Regular practice sessions<br>
+            • Mock tests<br>
+            • Performance analysis
+          </div>
+          <div>
+            <strong>Phase 3: Revision (1 month)</strong><br>
+            • Complete syllabus revision<br>
+            • Weak area focus<br>
+            • Time management<br>
+            • Exam strategy
+          </div>
+        `;
+      }
+      
+      return roadmap;
+    }
+
+    async function load(){
+      if(!slug){ return; }
+      try{
+        const res = await fetch(`${API_BASE}/exams/${encodeURIComponent(slug)}`);
+        const data = await res.json();
+        const e = data?.exam || {};
+        if(e.name) document.getElementById('examName').textContent = e.name;
+        
+        // Support both old format (windows/fees) and new format
+        const w = (e.windows && e.windows[0]) || {};
+        
+        // Build dates list - support both formats
+        const datesList = [];
+        if(e.applicationDate) {
+          datesList.push(`Application: ${e.applicationDate}`);
+        } else {
+          if(w.notifDate) datesList.push(`Notification: ${fmt(w.notifDate)}`);
+          if(w.applyStart) datesList.push(`Apply Start: ${fmt(w.applyStart)}`);
+          if(w.applyEnd) datesList.push(`Apply End: ${fmt(w.applyEnd)}`);
+          if(w.lateFeeStart || w.lateFeeEnd) datesList.push(`Late Fee: ${(w.lateFeeStart?fmt(w.lateFeeStart):'—')} → ${(w.lateFeeEnd?fmt(w.lateFeeEnd):'—')}`);
+        }
+        if(e.examMonth || e.examDates) {
+          datesList.push(`Exam Dates: ${e.examMonth || (e.examDates||[]).map(fmt).join(', ') || '—'}`);
+        } else if(w.examDates) {
+          datesList.push(`Exam Dates: ${(w.examDates||[]).map(fmt).join(', ') || '—'}`);
+        }
+        setList(document.getElementById('dates'), datesList);
+
+        // Build fees list - support both formats
+        let feesList = [];
+        if(e.fees && Array.isArray(e.fees)) {
+          feesList = e.fees.map(f => `${f.category}: ${f.amount}${f.lateFeeAmount?` (+${f.lateFeeAmount} late)`:''}`);
+        } else if(e.applicationFee) {
+          feesList = [e.applicationFee];
+        }
+        setList(document.getElementById('fees'), feesList);
+
+        // Build syllabus - support both formats
+        let sylHtml = '';
+        if(e.syllabus && Array.isArray(e.syllabus)) {
+          // Old format: array of objects with title and topics
+          sylHtml = e.syllabus.map(s => `<div class='card'><div class='item-title'>${s.title}</div><div class='item-sub'>${(s.topics||[]).join(', ')}</div></div>`).join('');
+        } else if(e.syllabus && typeof e.syllabus === 'string') {
+          // New format: syllabus as string
+          sylHtml = `<div class='card'><div class='item-sub'>${e.syllabus}</div></div>`;
+        }
+        document.getElementById('syllabus').innerHTML = sylHtml || '<div class="helper">—</div>';
+
+        // Build resources list - support both formats
+        let resList = [];
+        if(e.resources && Array.isArray(e.resources)) {
+          resList = e.resources.map(r => `[${r.type}] <a href='${r.url}' target='_blank' rel='noopener'>${r.title}</a>`);
+        }
+        if(e.youtubeReference) {
+          resList.push(`[Video] <a href='${e.youtubeReference}' target='_blank' rel='noopener'>YouTube Reference</a>`);
+        }
+        setList(document.getElementById('resources'), resList);
+
+        // Set official website link - support both formats
+        const off = document.getElementById('official');
+        const officialUrl = e.officialUrl || e.website;
+        if(officialUrl){ off.href = officialUrl; off.style.display='inline-block'; } else { off.style.display='none'; }
+        
+        // Add track button functionality
+        const trackBtn = document.getElementById('trackBtn');
+        if (trackBtn && e.id) {
+          trackBtn.addEventListener('click', () => {
+            // Ensure exam object has all required properties
+            const examToTrack = {
+              id: e.id,
+              name: e.name,
+              slug: e.slug,
+              category: e.category,
+              level: e.level
+            };
+            trackExam(examToTrack);
+          });
+        }
+        
+        // Generate and display roadmap
+        const roadmapDiv = document.getElementById('roadmap');
+        if (roadmapDiv) {
+          roadmapDiv.innerHTML = generateRoadmap(e);
+        }
+        
+      }catch(err){
+        console.error('Error loading exam:', err);
+        document.getElementById('syllabus').innerHTML = '<div class="helper">Failed to load exam. Ensure backend is running.</div>';
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', load);
+  </script>
+</body>
+</html>

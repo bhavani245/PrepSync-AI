@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PREPSYNC — Edit Profile</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <script src="config.js"></script>
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <div class="title">EDIT PROFILE</div>
+    </header>
+
+    <main>
+      <div class="card">
+        <div class="list">
+          <label class="list-item">
+            <div>Username</div>
+            <input id="username" class="input" placeholder="Enter username" />
+          </label>
+          <label class="list-item">
+            <div>Email</div>
+            <input id="email" class="input" type="email" placeholder="Enter email" />
+          </label>
+        </div>
+        <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:12px;">
+          <a class="btn btn-outline" href="./settings.html">Cancel</a>
+          <button id="saveBtn" class="btn">Save Changes</button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <nav class="bottom-nav" aria-label="Primary">
+    <a class="tab" href="./index.html">HOME</a>
+    <a class="tab" href="./history.html">HISTORY</a>
+    <a class="tab active" href="./settings.html">SETTINGS</a>
+  </nav>
+
+  <script>
+    // Load user profile from localStorage
+    function load(){
+      try{
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        document.getElementById('username').value = user.username || '';
+        document.getElementById('email').value = user.email || '';
+      }catch(err){
+        console.error('Error loading profile:', err);
+      }
+    }
+    
+    // Save user profile to localStorage
+    function save(){
+      const username = document.getElementById('username').value.trim();
+      const email = document.getElementById('email').value.trim();
+      
+      // Basic validation
+      if (!username || !email) {
+        alert('Username and email are required');
+        return;
+      }
+      
+      // Email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        alert('Please enter a valid email address');
+        return;
+      }
+      
+      try{
+        // Get current user data
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const users = JSON.parse(localStorage.getItem('users') || '[]');
+        
+        // Update user in localStorage users array
+        const userIndex = users.findIndex(u => u.id === user.id);
+        if (userIndex !== -1) {
+          users[userIndex].username = username;
+          users[userIndex].email = email;
+          localStorage.setItem('users', JSON.stringify(users));
+        }
+        
+        // Update current user session
+        user.username = username;
+        user.email = email;
+        localStorage.setItem('user', JSON.stringify(user));
+        
+        alert('Profile saved successfully!');
+        window.location.href = './settings.html';
+      }catch(err){
+        console.error('Error saving profile:', err);
+        alert('Failed to save profile.');
+      }
+    }
+    
+    document.getElementById('saveBtn').addEventListener('click', save);
+    window.addEventListener('DOMContentLoaded', load);
+  </script>
+</body>
+</html>

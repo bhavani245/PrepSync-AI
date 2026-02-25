@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PREPSYNC — Login</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <style>
+    .login-wrap{max-width:520px; margin:0 auto}
+    .alert{background:#2a0b0b; color:#ff6b6b; border:1px solid #5b1a1a; padding:10px 12px; border-radius:10px; display:none; margin-bottom:10px}
+    .link{color:#C05FFF; text-decoration:none}
+    .link:hover{text-decoration:underline}
+  </style>
+</head>
+<body>
+  <div class="container login-wrap">
+    <header class="header">
+      <div class="title title--black">Welcome Back to PREPSYNC</div>
+    </header>
+
+    <main>
+      <div id="alert" class="alert" role="alert"></div>
+      <div class="card">
+        <div class="list">
+          <label class="list-item">
+            <div>Email / Username</div>
+            <input id="username" class="input" placeholder="Enter email or username" />
+          </label>
+          <label class="list-item">
+            <div>Password</div>
+            <input id="password" class="input" type="password" placeholder="Enter password" />
+          </label>
+        </div>
+        <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:12px; align-items:center;">
+          <a href="./forgot-password.html" class="forgot-link">Forgot Password?</a>
+          <a class="link" href="./registration.html">Create Account</a>
+          <button id="loginBtn" class="btn">LOGIN</button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <nav class="bottom-nav" aria-label="Primary">
+    <a class="tab" href="./index.html">HOME</a>
+    <a class="tab" href="./history.html">HISTORY</a>
+    <a class="tab" href="./settings.html">SETTINGS</a>
+  </nav>
+
+  <script>
+    const alertBox = document.getElementById('alert');
+    const loginBtn = document.getElementById('loginBtn');
+    const usernameInput = document.getElementById('username');
+    const passwordInput = document.getElementById('password');
+    let __loginBusy = false;
+
+    // Check if user is already logged in
+    function checkAuth() {
+      const token = localStorage.getItem('authToken');
+      if (token) {
+        window.location.href = './index.html';
+      }
+    }
+
+    async function doLogin(e) {
+      if (__loginBusy) return;
+      __loginBusy = true;
+      loginBtn.disabled = true;
+      alertBox.style.display = 'none';
+      
+      const identifier = usernameInput.value.trim();
+      const password = passwordInput.value.trim();
+      
+      // Basic validation
+      if (!identifier || !password) {
+        showError('Email/Username and password are required');
+        __loginBusy = false;
+        loginBtn.disabled = false;
+        return;
+      }
+
+      try {
+        // Simulate authentication with localStorage (since backend doesn't have auth endpoints)
+        // In a real app, this would call the backend API
+        const users = JSON.parse(localStorage.getItem('users') || '[]');
+        const user = users.find(u => 
+          (u.email === identifier || u.username === identifier) && u.password === password
+        );
+        
+        if (!user) {
+          throw new Error('Invalid credentials. Please check your email/username and password.');
+        }
+
+        // Store the token and user data
+        const token = btoa(`${user.id}:${Date.now()}`);
+        localStorage.setItem('authToken', token);
+        localStorage.setItem('user', JSON.stringify({
+          id: user.id,
+          username: user.username,
+          email: user.email
+        }));
+        
+        // Update UI for logged in user
+        updateAuthUI();
+        
+        // Show success message and redirect
+        showSuccess('Login successful! Redirecting...');
+        setTimeout(() => {
+          window.location.href = './index.html';
+        }, 1000);
+        
+      } catch (error) {
+        showError(error.message || 'Login failed. Please try again.');
+      } finally {
+        __loginBusy = false;
+        loginBtn.disabled = false;
+      }
+    }
+
+    function showError(message) {
+      alertBox.textContent = message;
+      alertBox.style.display = 'block';
+      alertBox.className = 'alert';
+      alertBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    function showSuccess(message) {
+      alertBox.textContent = message;
+      alertBox.style.display = 'block';
+      alertBox.className = 'alert success';
+      alertBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    // Update UI based on authentication status
+    function updateAuthUI() {
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      if (user && user.email) {
+        // User is logged in
+        const loginLink = document.querySelector('a[href="./login.html"]');
+        if (loginLink) loginLink.textContent = 'LOGOUT';
+      }
+    }
+
+    // Add event listeners
+    if (loginBtn) {
+      loginBtn.addEventListener('click', doLogin);
+      
+      // Handle Enter key press
+      usernameInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') passwordInput.focus();
+      });
+      
+      passwordInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') doLogin();
+      });
+    }
+
+    // Check auth status on page load
+    checkAuth();
+</script>
+</body>
+</html>
